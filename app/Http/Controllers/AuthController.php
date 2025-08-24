@@ -43,7 +43,7 @@ class AuthController extends Controller
 
         $token = JWTAuth::fromUser($user);
 
-        return response()->json(compact('token', 'user'));
+        return response()->json(compact('token'));
     }
 
     public function me()
@@ -53,7 +53,11 @@ class AuthController extends Controller
 
     public function logout()
     {
-        JWTAuth::invalidate(JWTAuth::getToken());
-        return response()->json(['message' => 'Logged out']);
+
+        if (!JWTAuth::invalidate(JWTAuth::getToken())) {
+            return response()->json(['message' => 'Failed to logout'], 500);
+        }
+
+        return response()->json(['message' => 'Logged out'], 200);
     }
 }

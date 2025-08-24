@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Todo;
 use Illuminate\Http\Request;
+use Tymon\JWTAuth\Facades\JWTAuth;
 
 class TodoController extends Controller
 {
@@ -21,7 +22,25 @@ class TodoController extends Controller
 
     public function index()
     {
-        return response()->json(Todo::get());
+        if(!JWTAuth::check()) {
+            return response()->json([
+                "message" => "Unauthorized",
+            ], 401);
+        }
+
+        $todos = Todo::get();
+
+        if (!$todos) {
+            return response()->json([
+                "todos" => [],
+                "count" => 0,
+            ], 200);
+        }
+
+        return response()->json([
+            "todos" => $todos,
+            "count" => strval($todos->count()),
+        ], 200);
     }
 
     /**
@@ -29,13 +48,13 @@ class TodoController extends Controller
      */
     public function store(Request $request)
     {
-        $data = $this->todoValidator($request);
-
-        if (!$request->user()) {
+        if(!JWTAuth::check()) {
             return response()->json([
-                "message" => "User not found",
-            ], 404);
+                "message" => "Unauthorized",
+            ], 401);
         }
+
+        $data = $this->todoValidator($request);
 
         if (!$data) {
             return response()->json([
@@ -43,17 +62,17 @@ class TodoController extends Controller
             ], 400);
         }
 
-        if (!$request->user()->todos()->create($data)) {
+        $todo = JWTAuth::user()->todos()->create($data);
+
+        if (!$todo) {
             return response()->json([
                 "message" => "Failed to create todo",
             ], 500);
         }
 
-        $todo = $request->user()->todos()->create($data);
-
-
-
-        return response()->json($todo, 200);
+        return response()->json([
+            "id" => $todo->id,
+        ], 200);
     }
 
     /**
@@ -61,7 +80,22 @@ class TodoController extends Controller
      */
     public function show(string $id)
     {
-        return response()->json(Todo::findOrFail($id), 200);
+        if(!JWTAuth::check()) {
+            return response()->json([
+                "message" => "Unauthorized",
+            ], 401);
+        }
+
+        $todo = Todo::findOrFail($id);
+
+
+        if (!$todo) {
+            return response()->json([
+                "message" => "Todo not found",
+            ], 404);
+        }
+
+        return response()->json($todo, 200);
     }
 
     /**
@@ -69,7 +103,20 @@ class TodoController extends Controller
      */
     public function update(Request $request, string $id)
     {
+        if(!JWTAuth::check()) {
+            return response()->json([
+                "message" => "Unauthorized",
+            ], 401);
+        }
+
         $todo = Todo::findOrFail($id);
+
+        if (!$todo) {
+            return response()->json([
+                "message" => "Todo not found",
+            ], 404);
+        }
+
         $todo->update($this->todoValidator($request));
 
         return response()->json($todo, 200);
@@ -80,7 +127,20 @@ class TodoController extends Controller
      */
     public function destroy(string $id)
     {
-        $todo = Todo::findOrFail($id);
+        if(!JWTAuth::check()) {
+            return response()->json([
+                "message" => "Unauthorized",
+            ], 401);
+        }
+
+        $todo = Todo::find($id);
+
+        if (!$todo) {
+            return response()->json([
+                "message" => "Todo not found",
+            ], 404);
+        }
+
         $todo->delete();
 
         return response()->json(null, 204);
